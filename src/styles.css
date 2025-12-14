@@ -21,6 +21,10 @@ body {
   margin: 0;
   background: radial-gradient(1200px 800px at 65% 25%, #161b3c 0%, var(--bg) 55%, #02030a 100%);
   overflow: hidden;
+  /* Prevent text selection and callouts on mobile */
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 #app {

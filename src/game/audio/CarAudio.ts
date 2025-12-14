@@ -8,6 +8,8 @@ export class CarAudio {
   private ctx: AudioContext | null = null;
   private unlocked = false;
   private started = false;
+  private unlocking = false;
+  private armed = false;
 
   private master: GainNode | null = null;
   private engineGain: GainNode | null = null;
@@ -17,19 +19,42 @@ export class CarAudio {
   private skidSrc: AudioBufferSourceNode | null = null;
   private skidFilter: BiquadFilterNode | null = null;
 
+  private boundUnlock = this.unlockFromInteraction.bind(this);
+
   arm(): void {
-    const start = async () => {
-      await this.ensureUnlocked();
-      window.removeEventListener("pointerdown", start);
-      window.removeEventListener("keydown", start);
-    };
-    window.addEventListener("pointerdown", start, { once: true, passive: true });
-    window.addEventListener("keydown", start, { once: true, passive: true });
+    if (this.armed) return;
+    this.armed = true;
+
+    // Listen for any user interaction to unlock audio
+    // Don't use once: true - keep listening until successfully unlocked
+    window.addEventListener("pointerdown", this.boundUnlock, { passive: true });
+    window.addEventListener("keydown", this.boundUnlock, { passive: true });
+    window.addEventListener("touchstart", this.boundUnlock, { passive: true });
+    window.addEventListener("click", this.boundUnlock, { passive: true });
+
+    console.log("[AUDIO] Armed - waiting for user interaction to unlock");
+  }
+
+  private unlockFromInteraction = async () => {
+    if (this.unlocked) {
+      this.removeUnlockListeners();
+      return;
+    }
+    await this.ensureUnlocked();
+  };
+
+  private removeUnlockListeners(): void {
+    window.removeEventListener("pointerdown", this.boundUnlock);
+    window.removeEventListener("keydown", this.boundUnlock);
+    window.removeEventListener("touchstart", this.boundUnlock);
+    window.removeEventListener("click", this.boundUnlock);
   }
 
   stop(): void {
     this.started = false;
     this.unlocked = false;
+    this.armed = false;
+    this.removeUnlockListeners();
     try {
       this.engine1?.stop();
       this.engine2?.stop();
@@ -45,11 +70,21 @@ export class CarAudio {
   }
 
   update(frame: CarAudioFrame): void {
-    if (!this.ctx || !this.unlocked) {
-      if (!this.unlocked && frame.throttle > 0.01) {
-        console.log('[AUDIO] Audio context not unlocked yet - waiting for user interaction');
-      }
+    // If not unlocked yet, try to unlock on any meaningful input
+    // This catches cases where arm() was called late or listeners didn't fire
+    if (!this.unlocked && frame.throttle > 0.01) {
+      // Don't block - try to unlock in background
+      this.ensureUnlocked().catch(() => undefined);
       return;
+    }
+
+    if (!this.ctx || !this.unlocked) {
+      return;
+    }
+
+    // Resume context if it got suspended (e.g., tab switch)
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => undefined);
     }
 
     const mph = clamp(frame.speedMph, 0, 160);
@@ -84,14 +119,33 @@ export class CarAudio {
 
   private async ensureUnlocked(): Promise<void> {
     if (this.unlocked) return;
-    if (!this.ctx) {
-      this.ctx = new AudioContext();
+    if (this.unlocking) return; // Prevent multiple simultaneous unlock attempts
+
+    this.unlocking = true;
+
+    try {
+      if (!this.ctx) {
+        this.ctx = new AudioContext();
+        console.log("[AUDIO] Created AudioContext, state:", this.ctx.state);
+      }
+
+      // Always try to resume in case it was suspended
+      if (this.ctx.state === 'suspended') {
+        console.log("[AUDIO] Resuming suspended AudioContext...");
+        await this.ctx.resume();
+        console.log("[AUDIO] AudioContext resumed, state:", this.ctx.state);
+      }
+
+      if (this.ctx.state === 'running') {
+        this.unlocked = true;
+        this.removeUnlockListeners();
+        console.log("[AUDIO] Successfully unlocked!");
+      }
+    } catch (error) {
+      console.warn("[AUDIO] Failed to unlock audio:", error);
+    } finally {
+      this.unlocking = false;
     }
-    // Always try to resume in case it was suspended
-    if (this.ctx.state === 'suspended') {
-      await this.ctx.resume();
-    }
-    this.unlocked = true;
   }
 
   private startNodes(): void {

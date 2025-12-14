@@ -19,14 +19,15 @@ type KeyState = {
 
 export class InputManager {
   private readonly keys: KeyState = { w: false, s: false, a: false, d: false, r: false, up: false, down: false, left: false, right: false };
-  private touch = { steer: 0, throttle: 0, brake: 0, active: false };
-  private gyro = { steer: 0, enabled: false, calibration: 0 };
+  private touch = { steer: 0, throttle: 0, brake: 0, active: false, pointerId: -1 };
+  private gyro = { steer: 0, enabled: false, calibration: 0, hasCalibrated: false };
   private lastReset = false;
   private readonly doc: Document;
   private readonly focusTarget: HTMLElement | null;
   private readonly keyTargets: EventTarget[];
   private readonly pointerTarget: EventTarget;
   private lockPromise: Promise<void> | null = null;
+  private gyroPermissionRequested = false;
 
   constructor(private readonly target: Window = window, focusTarget?: HTMLElement | null) {
     this.doc = target.document ?? document;
@@ -45,10 +46,13 @@ export class InputManager {
     }
     this.target.addEventListener("blur", this.onBlur);
     document.addEventListener("visibilitychange", this.onVisibilityChange);
-    this.pointerTarget.addEventListener("pointerdown", this.onPointerDown as EventListener, { passive: true });
+    // Use passive: false for pointerdown so we can prevent default (stops text selection on mobile)
+    this.pointerTarget.addEventListener("pointerdown", this.onPointerDown as EventListener, { passive: false });
     this.pointerTarget.addEventListener("pointermove", this.onPointerMove as EventListener, { passive: true });
     this.pointerTarget.addEventListener("pointerup", this.onPointerUp as EventListener, { passive: true });
     this.pointerTarget.addEventListener("pointercancel", this.onPointerUp as EventListener, { passive: true });
+    // Prevent touch actions from triggering browser gestures
+    this.preventTouchActions();
     this.lockKeys();
     this.enableGyroscope();
   }
@@ -123,7 +127,15 @@ export class InputManager {
 
   private onPointerDown = (e: PointerEvent) => {
     if (e.pointerType !== "touch") return;
+
+    // Prevent default to stop text selection and other mobile browser behaviors
+    e.preventDefault();
+
+    // Request gyro permission on first touch (iOS requires user gesture)
+    this.requestGyroPermission();
+
     this.touch.active = true;
+    this.touch.pointerId = e.pointerId;
     this.lockKeys();
     this.focusTarget?.focus?.({ preventScroll: true });
     this.updateTouch(e);
@@ -131,12 +143,15 @@ export class InputManager {
 
   private onPointerMove = (e: PointerEvent) => {
     if (!this.touch.active || e.pointerType !== "touch") return;
+    if (e.pointerId !== this.touch.pointerId) return;
     this.updateTouch(e);
   };
 
   private onPointerUp = (e: PointerEvent) => {
     if (e.pointerType !== "touch") return;
+    if (e.pointerId !== this.touch.pointerId) return;
     this.touch.active = false;
+    this.touch.pointerId = -1;
     this.touch.steer = 0;
     this.touch.throttle = 0;
     this.touch.brake = 0;
@@ -237,29 +252,47 @@ export class InputManager {
     this.touch.brake = clamp(brake, 0, 1) * 0.9;
   }
 
+  private preventTouchActions(): void {
+    // Add touchstart listener to prevent default on game canvas
+    const target = this.focusTarget ?? document.body;
+    target.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+    }, { passive: false });
+    target.addEventListener("touchmove", (e) => {
+      e.preventDefault();
+    }, { passive: false });
+  }
+
   private enableGyroscope(): void {
     if (typeof DeviceOrientationEvent === "undefined") return;
 
-    // Request permission on iOS 13+
-    if (typeof (DeviceOrientationEvent as any).requestPermission === "function") {
-      // Permission will be requested on first touch interaction
-      this.pointerTarget.addEventListener("pointerdown", this.requestGyroPermission, { once: true, passive: true });
-    } else {
-      // Android and older iOS - just start listening
+    // On Android and older iOS, just start listening immediately
+    if (typeof (DeviceOrientationEvent as any).requestPermission !== "function") {
       window.addEventListener("deviceorientation", this.onDeviceOrientation, { passive: true });
       this.gyro.enabled = true;
+      console.log("[GYRO] Enabled gyroscope (no permission required)");
     }
+    // iOS 13+ requires permission - will be requested on first touch via requestGyroPermission()
   }
 
   private requestGyroPermission = async () => {
+    if (this.gyroPermissionRequested) return;
+    if (typeof (DeviceOrientationEvent as any).requestPermission !== "function") return;
+
+    this.gyroPermissionRequested = true;
+
     try {
+      console.log("[GYRO] Requesting gyroscope permission...");
       const permission = await (DeviceOrientationEvent as any).requestPermission();
       if (permission === "granted") {
         window.addEventListener("deviceorientation", this.onDeviceOrientation, { passive: true });
         this.gyro.enabled = true;
+        console.log("[GYRO] Permission granted, gyroscope enabled");
+      } else {
+        console.warn("[GYRO] Permission denied:", permission);
       }
     } catch (error) {
-      console.warn("Gyroscope permission denied:", error);
+      console.warn("[GYRO] Permission request failed:", error);
     }
   };
 
@@ -276,16 +309,33 @@ export class InputManager {
     // gamma ranges from -90 (left) to 90 (right)
     const gamma = event.gamma ?? 0;
 
-    // Calibrate on first reading
-    if (this.gyro.calibration === 0 && Math.abs(gamma) > 0.1) {
+    // Also check beta for device held in landscape
+    const beta = event.beta ?? 0;
+
+    // Detect screen orientation
+    const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+
+    // Calibrate on first valid reading (user may start with device tilted)
+    if (!this.gyro.hasCalibrated && Math.abs(gamma) > 0.1) {
       this.gyro.calibration = gamma;
+      this.gyro.hasCalibrated = true;
+      console.log("[GYRO] Calibrated at gamma:", gamma.toFixed(2));
     }
 
     // Apply calibration and scale to -1..1 range
-    // Tilt 30 degrees left/right for full steering
-    const calibrated = gamma - this.gyro.calibration;
-    const sensitivity = 30; // degrees for full lock
-    this.gyro.steer = clamp(calibrated / sensitivity, -1, 1);
+    // Tilt 25 degrees left/right for full steering lock (slightly more sensitive)
+    let steerValue: number;
+    if (isLandscape) {
+      // In landscape, beta controls left/right tilt
+      const calibrated = beta - (this.gyro.hasCalibrated ? 0 : 0);
+      steerValue = calibrated / 25;
+    } else {
+      // In portrait, gamma controls left/right tilt
+      const calibrated = gamma - this.gyro.calibration;
+      steerValue = calibrated / 25;
+    }
+
+    this.gyro.steer = clamp(steerValue, -1, 1);
   };
 }
 
