@@ -89,7 +89,7 @@ export class RaceScene implements IGameScene {
     }
 
     // Initialize minimap
-    this.minimap = tryCreateMinimap();
+    this.minimap = null;
 
     scene.clearColor = new Color3(0.01, 0.02, 0.04).toColor4(1);
     scene.fogMode = Scene.FOGMODE_EXP2;
