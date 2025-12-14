@@ -49,7 +49,8 @@ export class CarAudio {
 
     const mph = clamp(frame.speedMph, 0, 160);
     const throttle01 = clamp(Math.abs(frame.throttle), 0, 1);
-    const wantsAudio = mph > 1 || throttle01 > 0.04 || frame.slip > 6;
+    // Start audio immediately when throttle is pressed, not just when moving
+    const wantsAudio = throttle01 > 0.01 || mph > 0.5 || frame.slip > 6;
     if (!wantsAudio) {
       this.engineGain?.gain.setTargetAtTime(0, this.ctx.currentTime, 0.08);
       this.skidGain?.gain.setTargetAtTime(0, this.ctx.currentTime, 0.08);

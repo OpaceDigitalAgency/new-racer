@@ -32,6 +32,7 @@ import { applyQuality } from "../shared/quality";
 import { createCarMesh } from "../meshes/cars";
 import { InputManager } from "../../game/input/InputManager";
 import { CarAudio } from "../../game/audio/CarAudio";
+import { Minimap } from "../../ui/Minimap";
 import * as CANNON from "cannon-es";
 
 // Ensure Babylon scene components are included (some bundlers can otherwise tree-shake them away).
@@ -63,6 +64,7 @@ export class RaceScene implements IGameScene {
   private dashText: TextBlock | null = null;
   private dashGear: TextBlock | null = null;
   private readonly audio = new CarAudio();
+  private minimap: Minimap | null = null;
 
   // Physics materials - must be shared between configurePhysics and spawnCar
   private carMaterial: CANNON.Material | null = null;
@@ -80,24 +82,30 @@ export class RaceScene implements IGameScene {
     this.input.attach();
     this.audio.arm();
 
-    scene.clearColor = new Color3(0.02, 0.03, 0.06).toColor4(1);
+    // Initialize minimap
+    this.minimap = new Minimap(document.body);
+
+    scene.clearColor = new Color3(0.01, 0.02, 0.04).toColor4(1);
     scene.fogMode = Scene.FOGMODE_EXP2;
-    scene.fogDensity = 0.012;
-    scene.fogColor = new Color3(0.06, 0.05, 0.08);
-    scene.ambientColor = new Color3(0.16, 0.14, 0.18);
+    scene.fogDensity = 0.008;
+    scene.fogColor = new Color3(0.04, 0.04, 0.06);
+    scene.ambientColor = new Color3(0.2, 0.18, 0.22);
 
     const hemi = new HemisphericLight("raceHemi", new Vector3(0, 1, 0), scene);
-    hemi.intensity = 0.7;
-    hemi.groundColor = new Color3(0.08, 0.08, 0.12);
+    hemi.intensity = 0.85;
+    hemi.groundColor = new Color3(0.1, 0.1, 0.14);
 
     const sun = new DirectionalLight("sun", new Vector3(-0.6, -1, 0.55), scene);
     sun.position = new Vector3(50, 90, -55);
-    sun.intensity = 2.1;
+    sun.intensity = 2.8;
+    sun.specular = new Color3(1, 1, 1);
 
     const shadowGen = new ShadowGenerator(quality.shadowMapSize, sun);
     shadowGen.useBlurExponentialShadowMap = true;
-    shadowGen.blurKernel = 16;
+    shadowGen.blurKernel = 32;
+    shadowGen.blurScale = 2;
     shadowGen.forceBackFacesOnly = true;
+    shadowGen.darkness = 0.4;
 
     const camera = new FollowCamera("followCam", new Vector3(0, 4.2, -9), scene);
     camera.radius = 11;
@@ -109,43 +117,53 @@ export class RaceScene implements IGameScene {
     // The camera should purely follow the car, not be controllable
     scene.activeCamera = camera;
 
-    const glow = new GlowLayer("glow", scene, { blurKernelSize: 32 });
-    glow.intensity = 0.65;
+    const glow = new GlowLayer("glow", scene, { blurKernelSize: 64 });
+    glow.intensity = 0.85;
 
     if (quality.postFX) {
       const pipeline = new DefaultRenderingPipeline("fx", true, scene, [camera]);
-      // Enhanced antialiasing
+      // Enhanced antialiasing for photorealistic smoothness
       pipeline.fxaaEnabled = true;
-      pipeline.samples = 4; // MSAA for smoother edges
-      // Bloom for neon lights
+      pipeline.samples = 8; // Higher MSAA for ultra-smooth edges
+      // Bloom for neon lights and reflections
       pipeline.bloomEnabled = true;
-      pipeline.bloomThreshold = 0.65;
-      pipeline.bloomWeight = 0.25;
-      pipeline.bloomKernel = 48;
-      // Chromatic aberration - very subtle
+      pipeline.bloomThreshold = 0.6;
+      pipeline.bloomWeight = 0.35;
+      pipeline.bloomKernel = 64;
+      // Chromatic aberration - very subtle for realism
       pipeline.chromaticAberrationEnabled = true;
-      pipeline.chromaticAberration.aberrationAmount = 1.5;
-      // Film grain - subtle
+      pipeline.chromaticAberration.aberrationAmount = 2.0;
+      // Film grain - minimal for photorealistic look
       pipeline.grainEnabled = true;
-      pipeline.grain.intensity = 3;
-      // Enhanced image processing
+      pipeline.grain.intensity = 2;
+      // Enhanced image processing for photorealism
       pipeline.imageProcessingEnabled = true;
       pipeline.imageProcessing.toneMappingEnabled = true;
-      pipeline.imageProcessing.toneMappingType = 1;
-      pipeline.imageProcessing.exposure = 1.08;
-      pipeline.imageProcessing.contrast = 1.15;
+      pipeline.imageProcessing.toneMappingType = 1; // ACES tone mapping
+      pipeline.imageProcessing.exposure = 1.15;
+      pipeline.imageProcessing.contrast = 1.25;
       pipeline.imageProcessing.vignetteEnabled = true;
-      pipeline.imageProcessing.vignetteWeight = 0.5;
-      // Sharpen for crisp details
+      pipeline.imageProcessing.vignetteWeight = 0.4;
+      pipeline.imageProcessing.vignetteStretch = 0.5;
+      pipeline.imageProcessing.vignetteColor = new Color3(0, 0, 0);
+      // Sharpen for ultra-crisp photorealistic details
       pipeline.sharpenEnabled = true;
       if (pipeline.sharpen) {
-        pipeline.sharpen.edgeAmount = 0.3;
-        pipeline.sharpen.colorAmount = 0.5;
+        pipeline.sharpen.edgeAmount = 0.5;
+        pipeline.sharpen.colorAmount = 0.8;
       }
-      // Motion blur - subtle for racing feel
+      // Motion blur for racing realism
       pipeline.motionBlurEnabled = true;
       if (pipeline.motionBlur) {
-        pipeline.motionBlur.motionStrength = 0.4;
+        pipeline.motionBlur.motionStrength = 0.5;
+        pipeline.motionBlur.motionBlurSamples = 32;
+      }
+      // Depth of field for cinematic photorealism
+      pipeline.depthOfFieldEnabled = true;
+      if (pipeline.depthOfField) {
+        pipeline.depthOfField.focalLength = 150;
+        pipeline.depthOfField.fStop = 2.8;
+        pipeline.depthOfField.focusDistance = 12000;
       }
     }
 
@@ -166,6 +184,9 @@ export class RaceScene implements IGameScene {
     // Don't block the game loop forever; fade out the loading UI after a short grace period.
     await Promise.race([this.scene.whenReadyAsync(), sleep(1200)]);
     this.onProgress({ label: "Ready", progress: 1.0 });
+
+    // Show minimap once scene is ready
+    this.minimap?.show();
   }
 
   getHudState(): HudState {
@@ -212,11 +233,13 @@ export class RaceScene implements IGameScene {
 
     this.syncVisuals(ctx.dt);
     this.updateHud(ctx.dt);
+    this.updateMinimap();
   }
 
   dispose(): void {
     this.input.detach();
     this.audio.stop();
+    this.minimap?.dispose();
     this.scene.dispose();
   }
 
@@ -607,9 +630,9 @@ export class RaceScene implements IGameScene {
       }
     }
 
-    // Reverse - apply force backwards
-    if (this.carDriveSmoothed < -0.01 && speedBefore < 15) {
-      const reverseForce = 8000; // Newtons
+    // Reverse - apply force backwards (same power as forward)
+    if (this.carDriveSmoothed < -0.01 && speedBefore < maxSpeed * 0.6) {
+      const reverseForce = engineForce; // Same power as forward acceleration
       const force = new CANNON.Vec3(
         -forward.x * reverseForce * Math.abs(this.carDriveSmoothed),
         -forward.y * reverseForce * Math.abs(this.carDriveSmoothed),
@@ -624,10 +647,6 @@ export class RaceScene implements IGameScene {
       body.velocity.x *= Math.max(0.9, brakeFactor);
       body.velocity.z *= Math.max(0.9, brakeFactor);
     }
-
-    // Apply downforce to keep car on ground (increases with speed)
-    const downforce = new CANNON.Vec3(0, -2000 - speedBefore * 50, 0);
-    body.applyForce(downforce, body.position);
 
     // Steering
     const steerAmount = this.carSteerSmoothed * (2.0 + speedBefore * 0.02);
@@ -689,6 +708,18 @@ export class RaceScene implements IGameScene {
       this.hud.lapTimeSeconds = 0;
     }
     this.lastProgressIndex = idx;
+  }
+
+  private updateMinimap(): void {
+    if (!this.minimap || !this.carBody) return;
+
+    const carPos = new Vector3(this.carBody.position.x, this.carBody.position.y, this.carBody.position.z);
+    const carRotation = Math.atan2(
+      this.carBody.quaternion.z,
+      this.carBody.quaternion.w
+    ) * 2;
+
+    this.minimap.update(this.roadSamples, carPos, carRotation);
   }
 
   private resetCar(): void {

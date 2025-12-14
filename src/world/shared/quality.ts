@@ -11,28 +11,21 @@ export type QualityProfile = {
 
 export function getQualityProfile(q: PersistedState["quality"]): QualityProfile {
   if (q === "low") {
-    // Reduced resolution for performance, but not too fuzzy
-    return { hardwareScaling: 1.15, postFX: false, shadows: false, shadowMapSize: 512 };
+    // Reduced resolution for performance, but still decent
+    return { hardwareScaling: 1.0, postFX: false, shadows: true, shadowMapSize: 1024 };
   }
   if (q === "medium") {
-    // Better resolution for medium
-    return { hardwareScaling: 0.85, postFX: true, shadows: true, shadowMapSize: 1536 };
+    // Better resolution and shadows for medium
+    return { hardwareScaling: 0.8, postFX: true, shadows: true, shadowMapSize: 2048 };
   }
-  // High quality = supersampling for crisp graphics
-  return { hardwareScaling: 0.75, postFX: true, shadows: true, shadowMapSize: 2048 };
+  // High quality = supersampling for photorealistic crisp graphics
+  return { hardwareScaling: 0.65, postFX: true, shadows: true, shadowMapSize: 4096 };
 }
 
 export function applyQuality(engine: Engine, scene: Scene, q: PersistedState["quality"]): QualityProfile {
   const profile = getQualityProfile(q);
   engine.setHardwareScalingLevel(profile.hardwareScaling);
   scene.performancePriority = 0;
-
-  // Enable high-quality texture filtering
-  if (q === "high" || q === "medium") {
-    // Set default texture sampling mode to trilinear for smoother textures
-    scene.getEngine().setTextureFormatToUse([]);
-  }
-
   return profile;
 }
 
