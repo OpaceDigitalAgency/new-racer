@@ -1,4 +1,5 @@
 import type { Engine } from "@babylonjs/core/Engines/engine";
+import type { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine";
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
@@ -15,7 +16,7 @@ export class MenuScene implements IGameScene {
   readonly scene: Scene;
   private wheel: ReturnType<typeof MeshBuilder.CreateTorus> | null = null;
 
-  constructor(engine: Engine, canvas: HTMLCanvasElement, persisted: PersistedState) {
+  constructor(engine: Engine | WebGPUEngine, canvas: HTMLCanvasElement, persisted: PersistedState) {
     const scene = new Scene(engine);
     this.scene = scene;
     applyQuality(engine, scene, persisted.quality);

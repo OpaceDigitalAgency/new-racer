@@ -1,4 +1,5 @@
 import type { Engine } from "@babylonjs/core/Engines/engine";
+import type { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine";
 import type { Scene } from "@babylonjs/core/scene";
 import type { PersistedState } from "../../runtime/storage";
 
@@ -22,7 +23,7 @@ export function getQualityProfile(q: PersistedState["quality"]): QualityProfile 
   return { hardwareScaling: 0.65, postFX: true, shadows: true, shadowMapSize: 4096 };
 }
 
-export function applyQuality(engine: Engine, scene: Scene, q: PersistedState["quality"]): QualityProfile {
+export function applyQuality(engine: Engine | WebGPUEngine, scene: Scene, q: PersistedState["quality"]): QualityProfile {
   const profile = getQualityProfile(q);
   engine.setHardwareScalingLevel(profile.hardwareScaling);
   scene.performancePriority = 0;

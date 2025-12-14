@@ -1,4 +1,5 @@
 import type { Engine } from "@babylonjs/core/Engines/engine";
+import type { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine";
 import { ShadowGeneratorSceneComponent } from "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
 import { PostProcessRenderPipelineManagerSceneComponent } from "@babylonjs/core/PostProcesses/RenderPipeline/postProcessRenderPipelineManagerSceneComponent";
 import { EffectLayerSceneComponent } from "@babylonjs/core/Layers/effectLayerSceneComponent";
@@ -70,7 +71,7 @@ export class RaceScene implements IGameScene {
   private carMaterial: CANNON.Material | null = null;
 
   constructor(
-    engine: Engine,
+    engine: Engine | WebGPUEngine,
     canvas: HTMLCanvasElement,
     persisted: PersistedState,
     private readonly onProgress: (p: LoadingProgress) => void
@@ -80,10 +81,15 @@ export class RaceScene implements IGameScene {
     this.input = new InputManager(window, canvas);
     const quality = applyQuality(engine, scene, persisted.quality);
     this.input.attach();
-    this.audio.arm();
+    try {
+      this.audio.arm();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn("[AUDIO] Failed to arm audio, continuing without SFX:", err);
+    }
 
     // Initialize minimap
-    this.minimap = new Minimap(document.body);
+    this.minimap = tryCreateMinimap();
 
     scene.clearColor = new Color3(0.01, 0.02, 0.04).toColor4(1);
     scene.fogMode = Scene.FOGMODE_EXP2;

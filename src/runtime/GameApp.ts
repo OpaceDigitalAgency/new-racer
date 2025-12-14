@@ -1,4 +1,5 @@
 import type { Engine } from "@babylonjs/core";
+import { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine";
 import { createBestEngine } from "./createEngine";
 import type { GameAppInit, GameState, IGameScene } from "./types";
 import { loadState, saveState } from "./storage";
@@ -9,7 +10,7 @@ import { MenuScene } from "../world/scenes/MenuScene";
 export class GameApp {
   private readonly canvas: HTMLCanvasElement;
   private readonly ui: UIManager;
-  private engine: Engine | null = null;
+  private engine: Engine | WebGPUEngine | null = null;
   private active: IGameScene | null = null;
   private state: ReturnType<typeof loadState>;
   private currentState: GameState = "menu";
@@ -109,7 +110,7 @@ export class GameApp {
       // eslint-disable-next-line no-console
       console.error(err);
       this.ui.setLoading(false);
-      this.ui.toast("Failed to start race. Try ?engine=webgl2 or ?engine=webgpu");
+      this.ui.toast("Failed to start race");
       await this.setState("menu");
     }
   }

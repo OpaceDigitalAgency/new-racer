@@ -38,7 +38,7 @@ app.start().catch((err) => {
   pre.style.color = "rgba(255,255,255,0.92)";
   pre.style.fontFamily =
     "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace";
-  pre.textContent = `Failed to start the game.\n\n${String(err)}\n\nTip: try ?engine=webgl2 or ?engine=webgpu`;
+  pre.textContent = `Failed to start the game.\n\n${String(err)}\n\nTip: Try ?engine=webgl2 or ?engine=webgpu`;
   uiRoot.appendChild(pre);
   // eslint-disable-next-line no-console
   console.error(err);

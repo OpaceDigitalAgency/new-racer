@@ -1,4 +1,5 @@
 import type { Engine } from "@babylonjs/core/Engines/engine";
+import type { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine";
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
@@ -15,7 +16,7 @@ export class GarageScene implements IGameScene {
   private selected: CarStyle;
   private premiumUnlocked: boolean;
 
-  constructor(engine: Engine, canvas: HTMLCanvasElement, persisted: PersistedState) {
+  constructor(engine: Engine | WebGPUEngine, canvas: HTMLCanvasElement, persisted: PersistedState) {
     this.selected = persisted.selectedCar;
     this.premiumUnlocked = persisted.premiumUnlocked;
 

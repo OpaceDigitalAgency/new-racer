@@ -1,4 +1,5 @@
 import type { Engine, Scene } from "@babylonjs/core";
+import type { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine";
 
 export type GameState = "menu" | "garage" | "race";
 
@@ -10,7 +11,7 @@ export type GameAppInit = {
 };
 
 export type FrameContext = {
-  engine: Engine;
+  engine: Engine | WebGPUEngine;
   dt: number;
   now: number;
 };
