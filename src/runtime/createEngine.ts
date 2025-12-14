@@ -9,13 +9,15 @@ export async function createBestEngine(
   const forced = new URLSearchParams(window.location.search).get("engine")?.toLowerCase();
   const forceWebGL = forced === "webgl" || forced === "webgl2";
   const forceWebGPU = forced === "webgpu";
+  const allowAutoWebGPU = forced === "auto";
 
-  if (!forceWebGL) {
+  // Default to WebGL2 for stability/compatibility; allow explicit opt-in to WebGPU via `?engine=webgpu`.
+  if (forceWebGPU || allowAutoWebGPU) {
     const canUseWebGPU = forceWebGPU
       ? true
       : await withTimeout(WebGPUEngine.IsSupportedAsync, 900).catch(() => false);
 
-    if (canUseWebGPU) {
+    if (canUseWebGPU && !forceWebGL) {
       try {
         const engine = new WebGPUEngine(canvas, {
           adaptToDeviceRatio: true,

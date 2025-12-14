@@ -109,7 +109,7 @@ export class GameApp {
       // eslint-disable-next-line no-console
       console.error(err);
       this.ui.setLoading(false);
-      this.ui.toast("Failed to start race. Try ?engine=webgl");
+      this.ui.toast("Failed to start race. Try ?engine=webgl2 or ?engine=webgpu");
       await this.setState("menu");
     }
   }
