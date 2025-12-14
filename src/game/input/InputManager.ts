@@ -20,6 +20,7 @@ type KeyState = {
 export class InputManager {
   private readonly keys: KeyState = { w: false, s: false, a: false, d: false, r: false, up: false, down: false, left: false, right: false };
   private touch = { steer: 0, throttle: 0, brake: 0, active: false };
+  private gyro = { steer: 0, enabled: false, calibration: 0 };
   private lastReset = false;
   private readonly doc: Document;
   private readonly focusTarget: HTMLElement | null;
@@ -49,6 +50,7 @@ export class InputManager {
     this.pointerTarget.addEventListener("pointerup", this.onPointerUp as EventListener, { passive: true });
     this.pointerTarget.addEventListener("pointercancel", this.onPointerUp as EventListener, { passive: true });
     this.lockKeys();
+    this.enableGyroscope();
   }
 
   detach(): void {
@@ -62,6 +64,7 @@ export class InputManager {
     this.pointerTarget.removeEventListener("pointermove", this.onPointerMove as EventListener);
     this.pointerTarget.removeEventListener("pointerup", this.onPointerUp as EventListener);
     this.pointerTarget.removeEventListener("pointercancel", this.onPointerUp as EventListener);
+    this.disableGyroscope();
   }
 
   read(): RawInput {
@@ -70,7 +73,7 @@ export class InputManager {
     const steerRight = (this.keys.d || this.keys.right) ? 1 : 0;
     const steerLeft = (this.keys.a || this.keys.left) ? 1 : 0;
     const steer = clamp(
-      steerRight - steerLeft + pad.steer + this.touch.steer,
+      steerRight - steerLeft + pad.steer + this.touch.steer + this.gyro.steer,
       -1,
       1
     );
@@ -233,6 +236,57 @@ export class InputManager {
     this.touch.throttle = clamp(throttle, 0, 1) * 0.9;
     this.touch.brake = clamp(brake, 0, 1) * 0.9;
   }
+
+  private enableGyroscope(): void {
+    if (typeof DeviceOrientationEvent === "undefined") return;
+
+    // Request permission on iOS 13+
+    if (typeof (DeviceOrientationEvent as any).requestPermission === "function") {
+      // Permission will be requested on first touch interaction
+      this.pointerTarget.addEventListener("pointerdown", this.requestGyroPermission, { once: true, passive: true });
+    } else {
+      // Android and older iOS - just start listening
+      window.addEventListener("deviceorientation", this.onDeviceOrientation, { passive: true });
+      this.gyro.enabled = true;
+    }
+  }
+
+  private requestGyroPermission = async () => {
+    try {
+      const permission = await (DeviceOrientationEvent as any).requestPermission();
+      if (permission === "granted") {
+        window.addEventListener("deviceorientation", this.onDeviceOrientation, { passive: true });
+        this.gyro.enabled = true;
+      }
+    } catch (error) {
+      console.warn("Gyroscope permission denied:", error);
+    }
+  };
+
+  private disableGyroscope(): void {
+    window.removeEventListener("deviceorientation", this.onDeviceOrientation);
+    this.gyro.enabled = false;
+    this.gyro.steer = 0;
+  }
+
+  private onDeviceOrientation = (event: DeviceOrientationEvent) => {
+    if (!this.gyro.enabled) return;
+
+    // Use gamma (left-right tilt) for steering
+    // gamma ranges from -90 (left) to 90 (right)
+    const gamma = event.gamma ?? 0;
+
+    // Calibrate on first reading
+    if (this.gyro.calibration === 0 && Math.abs(gamma) > 0.1) {
+      this.gyro.calibration = gamma;
+    }
+
+    // Apply calibration and scale to -1..1 range
+    // Tilt 30 degrees left/right for full steering
+    const calibrated = gamma - this.gyro.calibration;
+    const sensitivity = 30; // degrees for full lock
+    this.gyro.steer = clamp(calibrated / sensitivity, -1, 1);
+  };
 }
 
 function readGamepad(): { steer: number; throttle: number; brake: number } {
