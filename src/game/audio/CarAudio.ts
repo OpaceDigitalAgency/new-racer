@@ -19,22 +19,6 @@ export class CarAudio {
   private skidSrc: AudioBufferSourceNode | null = null;
   private skidFilter: BiquadFilterNode | null = null;
 
-  private boundUnlock = this.unlockFromInteraction.bind(this);
-
-  arm(): void {
-    if (this.armed) return;
-    this.armed = true;
-
-    // Listen for any user interaction to unlock audio
-    // Don't use once: true - keep listening until successfully unlocked
-    window.addEventListener("pointerdown", this.boundUnlock, { passive: true });
-    window.addEventListener("keydown", this.boundUnlock, { passive: true });
-    window.addEventListener("touchstart", this.boundUnlock, { passive: true });
-    window.addEventListener("click", this.boundUnlock, { passive: true });
-
-    console.log("[AUDIO] Armed - waiting for user interaction to unlock");
-  }
-
   private unlockFromInteraction = async () => {
     if (this.unlocked) {
       this.removeUnlockListeners();
@@ -43,11 +27,25 @@ export class CarAudio {
     await this.ensureUnlocked();
   };
 
+  arm(): void {
+    if (this.armed) return;
+    this.armed = true;
+
+    // Listen for any user interaction to unlock audio
+    // Don't use once: true - keep listening until successfully unlocked
+    window.addEventListener("pointerdown", this.unlockFromInteraction, { passive: true });
+    window.addEventListener("keydown", this.unlockFromInteraction, { passive: true });
+    window.addEventListener("touchstart", this.unlockFromInteraction, { passive: true });
+    window.addEventListener("click", this.unlockFromInteraction, { passive: true });
+
+    console.log("[AUDIO] Armed - waiting for user interaction to unlock");
+  }
+
   private removeUnlockListeners(): void {
-    window.removeEventListener("pointerdown", this.boundUnlock);
-    window.removeEventListener("keydown", this.boundUnlock);
-    window.removeEventListener("touchstart", this.boundUnlock);
-    window.removeEventListener("click", this.boundUnlock);
+    window.removeEventListener("pointerdown", this.unlockFromInteraction);
+    window.removeEventListener("keydown", this.unlockFromInteraction);
+    window.removeEventListener("touchstart", this.unlockFromInteraction);
+    window.removeEventListener("click", this.unlockFromInteraction);
   }
 
   stop(): void {
