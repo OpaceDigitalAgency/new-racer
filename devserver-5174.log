@@ -1,0 +1,42 @@
+
+> car-racing-better@0.1.0 dev
+> vite --host localhost --port 5174 --strictPort
+
+
+  VITE v6.4.1  ready in 142 ms
+
+  ➜  Local:   http://localhost:5174/
+9:38:49 AM [vite] (client) page reload src/main.ts
+9:45:01 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+9:45:26 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+9:47:24 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+9:49:17 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+9:52:16 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+9:55:56 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:03:46 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:05:58 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:06:38 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:12:00 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:13:30 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:14:43 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:15:49 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:17:09 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:17:23 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:18:03 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:18:19 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:18:33 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:20:32 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:21:41 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:22:36 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:22:57 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:25:26 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:25:50 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:26:29 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:26:51 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:29:32 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:29:45 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:30:24 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:30:42 AM [vite] (client) page reload src/game/audio/CarAudio.ts
+10:31:12 AM [vite] (client) page reload src/world/shared/quality.ts
+10:31:45 AM [vite] (client) page reload src/world/scenes/RaceScene.ts
+10:31:59 AM [vite] (client) page reload src/world/shared/quality.ts
